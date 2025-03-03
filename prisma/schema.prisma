@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  name     String
+  password String
+  role     String @default("USER")
+  refreshToken String?
+  tests    Test[] // Один пользователь может создать несколько тестов
+  results  UserTestResult[]
+}
+
+model Test {
+  id        Int       @id @default(autoincrement())
+  title     String
+  author    User      @relation(fields: [authorId], references: [id])
+  authorId  Int
+  questions Question[]
+  results   UserTestResult[]
+  createdAt DateTime @default(now())
+}
+
+model Question {
+  id       Int      @id @default(autoincrement())
+  text     String
+  test     Test     @relation(fields: [testId], references: [id])
+  testId   Int
+  answers  Answer[]
+}
+
+model Answer {
+  id         Int      @id @default(autoincrement())
+  text       String
+  isCorrect  Boolean
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int
+}
+
+model UserTestResult {
+  id       Int   @id @default(autoincrement())
+  user     User  @relation(fields: [userId], references: [id])
+  userId   Int
+  test     Test  @relation(fields: [testId], references: [id])
+  testId   Int
+  score    Int   // Очки или процент правильных ответов
+  takenAt  DateTime @default(now())
+}
