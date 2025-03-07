@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { access } from 'fs';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from '@/user/dto/user.dto';
 
@@ -17,11 +16,11 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async generateTokens(userId: number, email: string) {
-    const payload = { id: userId, email: email };
+  async generateTokens(userId: number, email: string, role: string) {
+    const payload = { id: userId, email: email, role: role };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET,
+      secret: process.env.JWT_ACCESS_SECRET,
       expiresIn: '1h',
     });
 
@@ -40,6 +39,14 @@ export class AuthService {
     });
   }
 
+  async deleteRefreshToken(userId: number) {
+    const user = await this.userService.updateUser(userId, {
+      refreshToken: undefined,
+    });
+    const { password: _, refreshToken: __, ...safeUser } = user;
+    return safeUser;
+  }
+
   async refreshAccessToken(userId: number, refreshToken: string) {
     const user = await this.userService.findUserById(userId);
 
@@ -48,8 +55,9 @@ export class AuthService {
       throw new ForbiddenException('Invalid refresh token');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
+    return tokens;
   }
 
   async validateUser(email: string, password: string) {
@@ -63,18 +71,33 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    const { password: _, ...result } = user;
+    const { password: _, refreshToken: __, ...result } = user;
     return result;
+  }
+
+  async validateRefreshToken(userId: number, refreshToken: string) {
+    const user = await this.userService.findUserById(userId);
+    const isMatch = await bcrypt.compare(refreshToken, user.refreshToken!);
+    if (!isMatch) {
+      throw new ForbiddenException('Invalid refresh token');
+    }
+    return user;
   }
 
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
-    const tokens = await this.generateTokens(user.id, user.email);
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
     return {
-      message: 'User logged in successfully',
       user,
       tokens,
+    };
+  }
+
+  async logout(userId: number) {
+    const user = await this.deleteRefreshToken(userId);
+    return { 
+      user, 
     };
   }
 
