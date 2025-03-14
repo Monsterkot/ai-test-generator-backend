@@ -16,12 +16,12 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async generateTokens(userId: number, email: string, role: string) {
-    const payload = { id: userId, email: email, role: role };
+  async generateTokens(userId: number, name: string, email: string, role: string) {
+    const payload = { id: userId, name: name, email: email, role: role };
 
     const accessToken = this.jwtService.sign(payload, {
       secret: process.env.JWT_ACCESS_SECRET,
-      expiresIn: '1h',
+      expiresIn: '1d',
     });
 
     const refreshToken = this.jwtService.sign(payload, {
@@ -55,7 +55,7 @@ export class AuthService {
       throw new ForbiddenException('Invalid refresh token');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.name, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
     return tokens;
   }
@@ -86,7 +86,7 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.name, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
     return {
       user,

@@ -57,7 +57,7 @@ export class AuthController {
     return response.send({ message: 'User registered successfully', user, tokens });
   }
 
-  @UseGuards(JwtAccessGuard)
+  @UseGuards(JwtRefreshGuard)
   @Post('logout')
   async logout(@Res() response: Response, @GetUser('id') userId: number) {
     response.clearCookie('accessToken');

@@ -8,11 +8,17 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CheckEmailDto, CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { get } from 'http';
+import { JwtAccessGuard } from '@/auth/guards/jwt-access.guard';
+import { Request } from 'express';
+import { User } from '@prisma/client';
 
 @Controller('users')
 export class UserController {
@@ -61,5 +67,11 @@ export class UserController {
   async userExistsByEmail(@Query() query: CheckEmailDto) {
     const exists = await this.userService.userExistsByEmail(query.email);
     return { exists };
+  }
+
+  @UseGuards(JwtAccessGuard)
+  @Get('profile')
+  async getProfile(@Req() req: any) {
+    return req.user;
   }
 }

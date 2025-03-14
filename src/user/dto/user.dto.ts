@@ -59,3 +59,4 @@ export class CheckEmailDto {
   @IsEmail({}, { message: 'Invalid email format' })
   email: string;
 }
+
