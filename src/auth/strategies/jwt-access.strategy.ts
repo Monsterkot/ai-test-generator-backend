@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Request } from 'express';
+import { jwtDecode } from "jwt-decode";
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { combineLatest } from "rxjs";
 
@@ -25,13 +26,19 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access'){
             throw new UnauthorizedException('Access token not found');
         }
 
-        const currentTime = Math.floor(Date.now() / 1000);
-        if (accessToken.exp < currentTime) {
-            throw new UnauthorizedException('Access token expired');//TODO спросить у гпт правильно ли проверяется токен по сроку действия
+        try{
+            const decoded: {exp: number} = jwtDecode(accessToken);
+            const currentTime = Math.floor(Date.now() / 1000);
+            if (decoded.exp < currentTime) {
+                console.log(`Token expired at ${decoded.exp}, current time: ${currentTime}`);
+                throw new UnauthorizedException('Access token expired');
+            }
+
+            const user = { id: payload.id, name: payload.name, email: payload.email, role: payload.role };
+            console.log(user);
+            return user;
+        }catch(e){
+            throw new UnauthorizedException('Invalid access token');
         }
-        
-        const user = { id: payload.id, name: payload.name, email: payload.email, role: payload.role };
-        console.log(user);
-        return user;
     }
 }

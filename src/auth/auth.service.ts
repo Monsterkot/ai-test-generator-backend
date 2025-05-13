@@ -41,7 +41,7 @@ export class AuthService {
 
   async deleteRefreshToken(userId: number) {
     const user = await this.userService.updateUser(userId, {
-      refreshToken: undefined,
+      refreshToken: null,
     });
     const { password: _, refreshToken: __, ...safeUser } = user;
     return safeUser;
@@ -96,9 +96,7 @@ export class AuthService {
 
   async logout(userId: number) {
     const user = await this.deleteRefreshToken(userId);
-    return { 
-      user, 
-    };
+    return user;
   }
 
   async register(createUserDto: CreateUserDto) {

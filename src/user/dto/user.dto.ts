@@ -7,6 +7,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { IsInt, Min, Max } from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail({}, { message: 'Invalid email format' })
@@ -52,11 +53,21 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  refreshToken?: string;
+  refreshToken?: string | null;
 }
 
 export class CheckEmailDto {
   @IsEmail({}, { message: 'Invalid email format' })
   email: string;
 }
+
+export class CreateResultDto {
+  @IsInt()
+  testId: number;
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  score: number;
+}
+
 

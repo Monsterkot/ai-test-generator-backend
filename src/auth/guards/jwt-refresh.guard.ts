@@ -7,8 +7,9 @@ export class JwtRefreshGuard extends AuthGuard('jwt-refresh'){
         return super.canActivate(context);
     }
 
-    handleRequest(err, user){
+    handleRequest(err, user, info){
         if (err || !user) {
+            console.log('Info:', info);
             throw err || new UnauthorizedException('Invalid or expired refresh token');
         }
         return user;

@@ -14,7 +14,12 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CheckEmailDto, CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import {
+  CheckEmailDto,
+  CreateResultDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from './dto/user.dto';
 import { get } from 'http';
 import { JwtAccessGuard } from '@/auth/guards/jwt-access.guard';
 import { Request } from 'express';
@@ -29,11 +34,13 @@ export class UserController {
     return this.userService.createUser(dto);
   }
 
+  @UseGuards(JwtAccessGuard)
   @Delete('delete/:id')
   async deleteUser(@Param('id', ParseIntPipe) id: number) {
     return this.userService.deleteUser(id);
   }
 
+  @UseGuards(JwtAccessGuard)
   @Get('all')
   async getAllUsers() {
     return this.userService.getAllUsers();
@@ -49,6 +56,7 @@ export class UserController {
     return this.userService.findUserByEmail(email);
   }
 
+  @UseGuards(JwtAccessGuard)
   @Patch('update/:id')
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
@@ -73,5 +81,13 @@ export class UserController {
   @Get('profile')
   async getProfile(@Req() req: any) {
     return req.user;
+  }
+
+  @UseGuards(JwtAccessGuard)
+  @Post('results')
+  async recordTestResult(@Req() req, @Body() dto: CreateResultDto) {
+    const userId = req.user.id;
+    const result = await this.userService.saveResult(userId, dto);
+    return { message: 'Result saved', result };
   }
 }

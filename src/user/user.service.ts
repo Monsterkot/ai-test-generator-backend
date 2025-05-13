@@ -3,9 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { CreateResultDto, CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { DatabaseService } from '../database/database.service';
 import * as bcrypt from 'bcrypt';
+import { take } from 'rxjs';
 
 @Injectable()
 export class UserService {
@@ -27,7 +28,7 @@ export class UserService {
       data: {
         ...dto,
         password: hashedPassword,
-      }
+      },
     });
     return {
       id: user.id,
@@ -37,7 +38,14 @@ export class UserService {
   }
 
   async getAllUsers() {
-    return await this.db.user.findMany();
+    return await this.db.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
   }
 
   async deleteUser(id: number) {
@@ -46,19 +54,88 @@ export class UserService {
     if (!userExists) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-
+  
+    // 1. Получаем все тесты пользователя
+    const userTests = await this.db.test.findMany({
+      where: {
+        authorId: id,
+      },
+      select: {
+        id: true,
+      },
+    });
+  
+    const testIds = userTests.map((test) => test.id);
+  
+    if (testIds.length > 0) {
+      // 2. Удаляем результаты прохождения тестов пользователя
+      await this.db.userTestResult.deleteMany({
+        where: {
+          testId: {
+            in: testIds,
+          },
+        },
+      });
+  
+      // 3. Получаем все вопросы этих тестов
+      const questions = await this.db.question.findMany({
+        where: {
+          testId: {
+            in: testIds,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+  
+      const questionIds = questions.map((q) => q.id);
+  
+      if (questionIds.length > 0) {
+        // 4. Удаляем ответы на эти вопросы
+        await this.db.answer.deleteMany({
+          where: {
+            questionId: {
+              in: questionIds,
+            },
+          },
+        });
+  
+        // 5. Удаляем вопросы
+        await this.db.question.deleteMany({
+          where: {
+            id: {
+              in: questionIds,
+            },
+          },
+        });
+      }
+  
+      // 6. Удаляем тесты
+      await this.db.test.deleteMany({
+        where: {
+          id: {
+            in: testIds,
+          },
+        },
+      });
+    }
+  
+    // 7. Удаляем пользователя
     const deletedUser = await this.db.user.delete({
       where: {
         id,
       },
     });
-
+  
     const { password: _, ...safeUser } = deletedUser;
-    return{
+  
+    return {
       message: 'User deleted successfully',
       user: safeUser,
-    }
+    };
   }
+  
 
   async findUserById(id: number) {
     const user = await this.db.user.findFirst({
@@ -109,5 +186,41 @@ export class UserService {
       where: { email },
     });
     return !!user;
+  }
+
+  async saveResult(userId: number, dto: CreateResultDto) {
+    // проверим, что тест существует
+    const test = await this.db.test.findUnique({
+      where: { id: dto.testId },
+    });
+    if (!test) {
+      throw new NotFoundException(`Test with id=${dto.testId} not found`);
+    }
+
+    // пытаемся найти уже существующий результат
+    const existing = await this.db.userTestResult.findFirst({
+      where: { userId, testId: dto.testId },
+    });
+
+    if (existing) {
+      // обновляем
+      return this.db.userTestResult.update({
+        where: { id: existing.id },
+        data: {
+          score: dto.score,
+          takenAt: new Date(),
+        },
+      });
+    } else {
+      // создаём новую запись
+      return this.db.userTestResult.create({
+        data: {
+          userId,
+          testId: dto.testId,
+          score: dto.score,
+          takenAt: new Date(),
+        },
+      });
+    }
   }
 }

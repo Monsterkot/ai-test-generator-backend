@@ -63,10 +63,11 @@ export class AuthController {
     response.clearCookie('accessToken');
     response.clearCookie('refreshToken');
     const user = await this.authService.logout(userId);
-    return {
+    console.log(user);
+    return response.send({
       message: 'User logged out successfully',
       user,
-    }
+    });
   }
 
   @UseGuards(JwtRefreshGuard)
